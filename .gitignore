@@ -1,0 +1,30 @@
+# Dataset - DO NOT UPLOAD
+dataset/
+
+# Generated outputs
+output/
+
+# Trained models
+models/
+*.pkl
+*.joblib
+*.pt
+*.bin
+*.safetensors
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
