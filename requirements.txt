@@ -6,3 +6,4 @@ rapidfuzz
 tqdm
 pyarrow
 lightgbm
+Unidecode  # ASCII transliteration fallback for names/addresses (src/normalization)
