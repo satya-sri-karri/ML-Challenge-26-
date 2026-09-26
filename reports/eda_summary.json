@@ -1,0 +1,292 @@
+{
+  "split": "train",
+  "sources": {
+    "source1": {
+      "path": "dataset/train/train_source1.tsv",
+      "row_count": 2206821,
+      "columns": {
+        "entity_id": {
+          "name": "entity_id",
+          "dtype_observed": "str",
+          "n_missing": 0,
+          "n_empty_string": 0,
+          "n_nonascii": 0,
+          "example_values": [
+            "S1-925783039",
+            "S1-773889195",
+            "S1-377745466",
+            "S1-133037285",
+            "S1-755362802"
+          ],
+          "length_min": 6,
+          "length_max": 12,
+          "length_sum": 26236686,
+          "length_count": 2206821,
+          "approx_unique": 200000,
+          "approx_unique_is_capped": true,
+          "length_mean": 11.888905352994193
+        },
+        "business_name": {
+          "name": "business_name",
+          "dtype_observed": "str",
+          "n_missing": 0,
+          "n_empty_string": 0,
+          "n_nonascii": 0,
+          "example_values": [
+            "Orelee's Barbershop",
+            "Prime Money",
+            "B+ Retail Inc",
+            "Christ Chapel",
+            "Prabhav Business Center"
+          ],
+          "length_min": 3,
+          "length_max": 105,
+          "length_sum": 53039626,
+          "length_count": 2206821,
+          "approx_unique": 328163,
+          "approx_unique_is_capped": true,
+          "length_mean": 24.03440333402664
+        },
+        "business_address": {
+          "name": "business_address",
+          "dtype_observed": "str",
+          "n_missing": 0,
+          "n_empty_string": 0,
+          "n_nonascii": 554,
+          "example_values": [
+            "1795 Westchester Drive, High Point, NC",
+            "17560 Ellis Road, Tahlequah, OK",
+            "1712 Montebello Avenue, Phoenix, AZ",
+            "2100 Cameron Drive, Unit APARTMENT G, Dundalk, MD",
+            "797, Lake Town Block A, Kolkata, Howrah, West Bengal"
+          ],
+          "length_min": 11,
+          "length_max": 256,
+          "length_sum": 114900812,
+          "length_count": 2206821,
+          "approx_unique": 395711,
+          "approx_unique_is_capped": true,
+          "length_mean": 52.06621289175697
+        },
+        "country": {
+          "name": "country",
+          "dtype_observed": "str",
+          "n_missing": 0,
+          "n_empty_string": 0,
+          "n_nonascii": 0,
+          "example_values": [
+            "US",
+            "US",
+            "US",
+            "US",
+            "India"
+          ],
+          "length_min": 2,
+          "length_max": 5,
+          "length_sum": 7063206,
+          "length_count": 2206821,
+          "approx_unique": 2,
+          "approx_unique_is_capped": false,
+          "length_mean": 3.2006247901393
+        }
+      },
+      "domain_style_name_count": 0,
+      "domain_style_name_rate": 0.0
+    },
+    "source2": {
+      "path": "dataset/train/train_source2.tsv",
+      "row_count": 5034616,
+      "columns": {
+        "entity_id": {
+          "name": "entity_id",
+          "dtype_observed": "str",
+          "n_missing": 0,
+          "n_empty_string": 0,
+          "n_nonascii": 0,
+          "example_values": [
+            "S2-166376419",
+            "S2-764573417",
+            "S2-639257739",
+            "S2-163963287",
+            "S2-49942811"
+          ],
+          "length_min": 6,
+          "length_max": 12,
+          "length_sum": 59855520,
+          "length_count": 5034616,
+          "approx_unique": 200000,
+          "approx_unique_is_capped": true,
+          "length_mean": 11.88879549105632
+        },
+        "business_name": {
+          "name": "business_name",
+          "dtype_observed": "str",
+          "n_missing": 0,
+          "n_empty_string": 0,
+          "n_nonascii": 764608,
+          "example_values": [
+            "राम मार्केटिंग प्राइवेट लिमिटेड",
+            "-- Holloway Peak Inc Seafood",
+            "आदित्य प्रॉपर्टीज एलएलपी",
+            "Summit Inc",
+            "Delta Tetlecommunication Inc"
+          ],
+          "length_min": 2,
+          "length_max": 104,
+          "length_sum": 126386860,
+          "length_count": 5034616,
+          "approx_unique": 385748,
+          "approx_unique_is_capped": true,
+          "length_mean": 25.103574930044317
+        },
+        "business_address": {
+          "name": "business_address",
+          "dtype_observed": "str",
+          "n_missing": 0,
+          "n_empty_string": 168967,
+          "n_nonascii": 478453,
+          "example_values": [
+            "KH NO. -570/13, NEW DELHI, WEST DELHI, Delhi",
+            "105 ELM ST, MORGANTON, NC",
+            "G-3/571, GULMOHAR COLONY, BHOPAL, Madhya Pradesh",
+            "GREENSBORO, NC, 19 1/2 STARDUST TRAIL",
+            "914 PIERPONT AVE, CLEVELAND, OH"
+          ],
+          "length_min": 8,
+          "length_max": 249,
+          "length_sum": 232729699,
+          "length_count": 4865649,
+          "approx_unique": 382389,
+          "approx_unique_is_capped": true,
+          "length_mean": 47.831172984323366
+        },
+        "country": {
+          "name": "country",
+          "dtype_observed": "str",
+          "n_missing": 0,
+          "n_empty_string": 0,
+          "n_nonascii": 0,
+          "example_values": [
+            "India",
+            "US",
+            "India",
+            "US",
+            "US"
+          ],
+          "length_min": 2,
+          "length_max": 5,
+          "length_sum": 16122629,
+          "length_count": 5034616,
+          "approx_unique": 2,
+          "approx_unique_is_capped": false,
+          "length_mean": 3.202355254104782
+        }
+      },
+      "domain_style_name_count": 201189,
+      "domain_style_name_rate": 0.03996114102843196
+    },
+    "source3": {
+      "path": "dataset/train/train_source3.tsv",
+      "row_count": 5285603,
+      "columns": {
+        "entity_id": {
+          "name": "entity_id",
+          "dtype_observed": "str",
+          "n_missing": 0,
+          "n_empty_string": 0,
+          "n_nonascii": 0,
+          "example_values": [
+            "S3-202863386",
+            "S3-859268022",
+            "S3-22467283",
+            "S3-671162755",
+            "S3-960981775"
+          ],
+          "length_min": 5,
+          "length_max": 12,
+          "length_sum": 62839123,
+          "length_count": 5285603,
+          "approx_unique": 200000,
+          "approx_unique_is_capped": true,
+          "length_mean": 11.8887330357577
+        },
+        "business_name": {
+          "name": "business_name",
+          "dtype_observed": "str",
+          "n_missing": 0,
+          "n_empty_string": 0,
+          "n_nonascii": 606737,
+          "example_values": [
+            "wilfordhancock.com",
+            "International South Consultants Private Ltd",
+            "LLC Moncada Léarning Center",
+            "Moyna's Coffee",
+            "Pvt. EFS Print Ventures Ltd."
+          ],
+          "length_min": 2,
+          "length_max": 123,
+          "length_sum": 133208527,
+          "length_count": 5285603,
+          "approx_unique": 387176,
+          "approx_unique_is_capped": true,
+          "length_mean": 25.202143823514554
+        },
+        "business_address": {
+          "name": "business_address",
+          "dtype_observed": "str",
+          "n_missing": 0,
+          "n_empty_string": 175916,
+          "n_nonascii": 476588,
+          "example_values": [
+            "Mack Rd, Haltom City, Texas",
+            "5780 Fawn Ct, Fort Worth, Texas",
+            "1 Ivanhoe Ave, PO Box 6009, Cincinnati, Ohio",
+            "Door No 183, 41St Cross, 22Nd Main 9Th Block Jayanagar, Bengaluru Urban, Bangalore, ಕರ್ನಾಟಕ",
+            "2260- Housecreek Trail, Unit 407, Raleigh, North Carolina"
+          ],
+          "length_min": 2,
+          "length_max": 240,
+          "length_sum": 246913970,
+          "length_count": 5109687,
+          "approx_unique": 383377,
+          "approx_unique_is_capped": true,
+          "length_mean": 48.32271918025507
+        },
+        "country": {
+          "name": "country",
+          "dtype_observed": "str",
+          "n_missing": 0,
+          "n_empty_string": 0,
+          "n_nonascii": 0,
+          "example_values": [
+            "US",
+            "India",
+            "US",
+            "US",
+            "India"
+          ],
+          "length_min": 2,
+          "length_max": 5,
+          "length_sum": 16917847,
+          "length_count": 5285603,
+          "approx_unique": 2,
+          "approx_unique_is_capped": false,
+          "length_mean": 3.2007411453338435
+        }
+      },
+      "domain_style_name_count": 210839,
+      "domain_style_name_rate": 0.03988929929092291
+    }
+  },
+  "ground_truth": {
+    "path": "dataset/train/train_ground_truth.tsv",
+    "n_singleton": 123247,
+    "n_nonsingleton": 2083574,
+    "singleton_rate": 0.05584820880352326,
+    "total_matches": 7638365,
+    "avg_matches_per_nonsingleton": 3.66599170463828,
+    "max_matches": 11,
+    "s2_match_count": 3693619,
+    "s3_match_count": 3944746
+  }
+}
