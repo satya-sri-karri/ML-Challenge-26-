@@ -72,26 +72,34 @@ def main():
 
     if args.dataset_dir:
         split_dir = os.path.join(args.dataset_dir, args.split)
+        
+        def resolve_source_path(source_name: str) -> str:
+            candidates = [
+                os.path.join(args.dataset_dir, "normalized", f"{args.split}_{source_name}.parquet"),
+                os.path.join(args.dataset_dir, f"{args.split}_{source_name}.parquet"),
+                os.path.join(args.dataset_dir, f"{args.split}_{source_name}.tsv"),
+                os.path.join(split_dir, f"{args.split}_{source_name}.tsv"),
+            ]
+            for p in candidates:
+                if os.path.exists(p):
+                    return p
+            return os.path.join(args.dataset_dir, f"{args.split}_{source_name}.tsv")
+
         if not s1_path:
-            # Check normalized parquet first, then TSV
-            norm_p = os.path.join(args.dataset_dir, "normalized", f"{args.split}_source1.parquet")
-            tsv_p = os.path.join(split_dir, f"{args.split}_source1.tsv")
-            s1_path = norm_p if os.path.exists(norm_p) else tsv_p
-
+            s1_path = resolve_source_path("source1")
         if not s2_path:
-            norm_p = os.path.join(args.dataset_dir, "normalized", f"{args.split}_source2.parquet")
-            tsv_p = os.path.join(split_dir, f"{args.split}_source2.tsv")
-            s2_path = norm_p if os.path.exists(norm_p) else tsv_p
-
+            s2_path = resolve_source_path("source2")
         if not s3_path:
-            norm_p = os.path.join(args.dataset_dir, "normalized", f"{args.split}_source3.parquet")
-            tsv_p = os.path.join(split_dir, f"{args.split}_source3.tsv")
-            s3_path = norm_p if os.path.exists(norm_p) else tsv_p
+            s3_path = resolve_source_path("source3")
 
         if not gt_path and args.split == "train":
-            candidate_gt = os.path.join(split_dir, "train_ground_truth.tsv")
-            if os.path.exists(candidate_gt):
-                gt_path = candidate_gt
+            for candidate_gt in [
+                os.path.join(args.dataset_dir, "train_ground_truth.tsv"),
+                os.path.join(split_dir, "train_ground_truth.tsv"),
+            ]:
+                if os.path.exists(candidate_gt):
+                    gt_path = candidate_gt
+                    break
 
     if not s1_path or not os.path.exists(s1_path):
         print(f"Error: Source 1 file not found at {s1_path}", file=sys.stderr)

@@ -386,8 +386,8 @@ def generate_candidates(
 
     # Rich multi-signal blocking path
     # Index source 2
-    for s2_i in range(len(source2)):
-        row_dict = source2.iloc[s2_i].to_dict()
+    s2_records = source2.to_dict("records")
+    for s2_i, row_dict in enumerate(s2_records):
         keys = _get_blocking_keys(row_dict, name_column=name_column)
         for k in keys:
             target_idx.add(k, s2_i)
@@ -400,8 +400,8 @@ def generate_candidates(
     s1_entity_ids: list[str] = []
     s2_entity_ids: list[str] = []
 
-    for s1_i in range(len(source1)):
-        row_dict = source1.iloc[s1_i].to_dict()
+    s1_records = source1.to_dict("records")
+    for s1_i, row_dict in enumerate(s1_records):
         keys = _get_blocking_keys(row_dict, name_column=name_column)
         cands = target_idx.get_candidates(keys)
 

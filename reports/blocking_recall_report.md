@@ -2,34 +2,40 @@
 
 **Role:** Person B — Blocking / Candidate Generation  
 **Branch:** `feature/blocking`  
-**Date:** 2026-09-26  
+**Dataset:** Amazon ML Challenge 2026 (Local Training & Test Data)  
+**Date:** 2026-09-27  
 
 ---
 
 ## 1. Executive Summary
 
-Blocking serves as the first filtering stage in the business entity resolution pipeline. Its primary objective is to drastically reduce the $O(N_1 \times (N_2 + N_3))$ search space (over $12.5$ million records / $23$ trillion possible comparisons) down to a manageable set of high-probability candidate pairs, while maintaining a near-perfect **recall ceiling**.
+This report documents the empirical evaluation of the multi-signal blocking pipeline executed on the **actual competition training dataset** (`dataset/train_source1.tsv`, `dataset/train_source2.tsv`, `dataset/train_source3.tsv`, `dataset/train_ground_truth.tsv`) and verified against the actual test sources (`dataset/test_source*.tsv`).
 
-Every true entity match missed during blocking can **never** be recovered by downstream Stage-A (LightGBM) or Stage-B (LLM verification) stages. Therefore, maximizing recall ceiling while achieving a substantial reduction ratio is the critical success criterion.
+Blocking serves as the sub-quadratic candidate generation stage ($O(N_1 + N_2 + N_3)$) that reduces the combinatorial search space down to a compact candidate set before pairwise Stage-A feature engineering (LightGBM) and Stage-B verification.
 
-### Core Metrics Summary
+### Actual Measured Metrics on Real Competition Data
 
-| Metric | Full Set | Train Split (80%) | Held-out Validation Split (20%) |
-|---|---|---|---|
-| **Recall Ceiling** | **100.00%** (2,508 / 2,508) | **100.00%** (1,940 / 1,940) | **100.00%** (568 / 568) |
-| **Reduction Ratio** | **92.66%** | **92.71%** | **92.49%** |
-| **Candidate Pairs** | 257,390 | 205,096 | 52,294 |
-| **All Possible Pairs** | 3,508,000 | 2,812,654 | 695,346 |
-| **Runtime (1k S1 vs 3.5k S2/S3)** | 1.80s | — | — |
-| **Peak Memory (Python-tracked)** | < 140 MB | — | — |
+The evaluation was performed on a representative sample of **10,000 actual Source 1 entities** evaluated against **134,522 actual target entities** (all 34,522 true ground-truth matches across Source 2 and Source 3 plus 100,000 actual distractor rows).
 
-*Note: As verified during workspace inspection, the raw local competition dataset files (`dataset/train/` and `dataset/test/`) are excluded via `.gitignore` and not yet unpacked on this local machine. Evaluation was performed using a rigorous benchmark split created directly from the sampled ground-truth distributions and real noise cases documented in `reports/eda_summary.json` and `reports/eda_summary.md`.*
+| Evaluation Split | Source 1 Entities | Total True Pairs | Recovered Pairs | Recall Ceiling | Candidate Pairs Generated | All Possible Pairs | Reduction Ratio |
+|---|---|---|---|---|---|---|---|
+| **Full Evaluation Set** | 10,000 | 34,522 | 34,233 | **99.16%** | 6,531,055 | 1,345,220,000 | **99.5145%** |
+| **Train Split (80%)** | 8,000 | 27,658 | 27,428 | **99.17%** | 5,232,844 | 1,076,176,000 | **99.5173%** |
+| **Held-out Validation (20%)** | 2,000 | 6,864 | 6,805 | **99.14%** | 1,298,211 | 269,044,000 | **99.5031%** |
+
+*Key Findings:*
+- **Held-out Recall Ceiling:** **99.14%** of genuine ground-truth matches were recovered on the unseen validation entities.
+- **Reduction Ratio:** **99.50%** of all possible pairs were pruned, leaving an average of **653.11 candidates** per Source 1 entity for downstream Stage-A feature ranking.
+- **Runtime:** **198.31 seconds** (~3.3 minutes).
+- **Peak Memory (Python-tracked):** **1,127.32 MB** (~1.1 GB).
+
+*(Note on Previous Synthetic Benchmarks: All numbers reported in this document are strictly measured on the actual competition dataset. The preliminary synthetic benchmark numbers reported during initial scaffolding prior to local dataset delivery have been completely superseded and deprecated.)*
 
 ---
 
 ## 2. Multi-Signal Blocking Architecture
 
-To avoid quadratic comparisons, we designed a multi-signal inverted index architecture that combines two independent, cheap signals and **unions** their candidate sets.
+The candidate generation engine combines two independent, cheap signals and **unions** their candidates to prevent false dismissals:
 
 ```
        Normalized Entity Record (Source 1 / Source 2 / Source 3)
@@ -38,10 +44,10 @@ To avoid quadratic comparisons, we designed a multi-signal inverted index archit
          ▼                                               ▼
    [ Signal A: Name ]                             [ Signal B: Address ]
   • Exact name_core                              • Compound: Number + Location Token
-  • Domain cleaned name (aristosteel.com)          (e.g. "85_ticonderoga")
+  • Domain cleaned name (e.g. aristosteel)         (e.g. "85_ticonderoga")
   • Distinctive token inverted index             • Distinctive token pairs (sorted)
   • 3-character prefix (with block capping)        (e.g. "guthrie_surprise")
-  • ASCII transliteration fallback               • Handled when empty (3.3% missing)
+  • ASCII transliteration fallback               • Safe empty address path (~3.3% missing)
          │                                               │
          └───────────────────────┬───────────────────────┘
                                  ▼
@@ -51,98 +57,84 @@ To avoid quadratic comparisons, we designed a multi-signal inverted index archit
                      Pruning & Deduplication
                                  │
                                  ▼
-                 candidate_pairs.tsv (Format for Person C)
+                 output/candidate_pairs.tsv (for Person C)
 ```
 
 ### Signal A: Name-Based Inverted Index
-1. **Exact & Domain Name Keys**:
-   - `name:{name_core}`: Exact normalized core name match.
-   - `name:{name_domain_cleaned}`: For domain-style names (e.g. `aristosteel.com` $\rightarrow$ `aristosteel`), allowing seamless matching with non-domain references.
-2. **Distinctive Token Keys**:
-   - Words from `name_tokens` with length $\ge 3$, filtered against `NAME_STOPWORDS` (e.g. `inc`, `ltd`, `services`, `enterprises`, `holdings`).
-   - Pruned if target block size $> 500$ to prevent candidate explosion.
-3. **Prefix Keys**:
-   - 3-character prefix (`name_prefix:{val[:3]}`), strictly gated by `max_prefix_block_size = 1000`.
-4. **Transliterated ASCII Fallback**:
-   - Unidecode-transliterated tokens from `name_ascii` for non-ASCII Indian script names.
+1. **Exact Normalized Name:** `name:{name_core}`.
+2. **Domain-Style Cleaning:** For domain names (e.g. `aristosteel.com` in Source 2/3), `name_domain_cleaned` strips the TLD and segments words, generating `name:{aristosteel}` to match non-domain references.
+3. **Distinctive Token Index:** Tokens ($\ge 3$ characters) from `name_tokens`, excluding `NAME_STOPWORDS` (`inc`, `ltd`, `services`, `enterprises`, etc.), with frequency capping (`max_token_block_size = 500`).
+4. **Prefix Blocking:** 3-character prefixes (`name_prefix:{val[:3]}`), strictly capped at `max_prefix_block_size = 1000`.
+5. **Transliterated ASCII Fallback:** Unidecode ASCII tokens from `name_ascii` for non-ASCII Indian script names.
 
-### Signal B: Order-Independent, Typo-Tolerant Address Blocking
-Real data inspection in `reports/eda_summary.md` established three critical empirical facts:
-- **Names can be completely unrelated while the address carries the match** (e.g., `Dréxkor` matched to `Atlantic` purely via address `85 Wanye Avenue, Ticonderoga Townshiip, New York` vs `85 Wayne Avenue, Ticonderoga, NY`).
-- **Address field order is not reliable** (e.g., `AZ, Fl 1st Floor, Surprise, 17437 Guthrie Street` — state first, number last).
-- **~3.3% of Source 2/3 rows have empty addresses** (requires a graceful name-only path).
-
-To solve these challenges without positional assumptions:
-1. **Number + Token Compound Keys (`addr_num_tok:{number}_{word}`)**:
-   - Numbers extracted from `address_numbers` (e.g. `85`, `17437`, `570/13`).
-   - Words extracted from `address_tokens`, excluding street/unit stopwords (`st`, `ave`, `rd`, `fl`, `ste`, `blvd`, `dr`, `lane`, `box`, `po`).
-   - Example: S1 `85 Wayne Ave, Ticonderoga, NY` and S2 `85 Wanye Ave, Ticonderoga Townshiip, NY` both produce `addr_num_tok:85_ticonderoga`. Despite typos in `wayne`/`wanye` and unrelated company names, they match with high precision.
-2. **Distinctive Token Pairs (`addr_pair:{token1}_{token2}`)**:
-   - Sorted unique location tokens (e.g., `guthrie_surprise`). Order-independent by construction.
-3. **Empty Address Safety**:
-   - If `address_is_empty` is `True` or `business_address == ""`, zero address keys are generated. The record is matched purely via name signals without errors or crashes.
+### Signal B: Order-Independent Address Blocking
+1. **Number + Location Compound Keys (`addr_num_tok:{number}_{word}`):**
+   - Combines numeric tokens from `address_numbers` (`85`, `17437`, `570/13`) with distinctive words from `address_tokens` (`ticonderoga`, `surprise`, `delhi`).
+   - Highly selective: recovers true matches where company names are unrelated or corrupted (e.g. `Dréxkor` $\leftrightarrow$ `Atlantic` via `addr_num_tok:85_ticonderoga`).
+2. **Sorted Distinctive Token Pairs (`addr_pair:{tok1}_{tok2}`):**
+   - Alphabetically sorted pairs of location tokens (e.g. `guthrie_surprise`). Completely invariant to scrambled address field order (e.g. state-first, number-last).
+3. **Empty Address Safety:**
+   - When `address_is_empty` is `True` (~3.3% of Source 2/3 records), address key extraction returns `set()` without crashing, falling back to name-based candidate generation.
 
 ---
 
-## 3. Signal Ablation Study
+## 3. Held-out Validation Methodology
 
-To demonstrate that multi-signal union is necessary and that neither signal alone suffices, we conducted an ablation test on the benchmark dataset:
-
-| Blocking Configuration | True Pairs | Recovered Pairs | Recall Ceiling | Missed True Matches |
-|---|---|---|---|---|
-| **Name-only Blocking** | 2,508 | 2,249 | **89.67%** | 259 (10.33%) |
-| **Address-only Blocking** | 2,508 | 2,397 | **95.57%** | 111 (4.43%) |
-| **Multi-Signal UNION** | 2,508 | 2,508 | **100.00%** | **0 (0.00%)** |
-
-### Why Unioning is Essential
-- **Name-only blocking fails** on entities where the name was completely changed/unrelated (e.g. `Dréxkor` $\leftrightarrow$ `Atlantic`), or where significant character-level corruption occurred.
-- **Address-only blocking fails** on records with missing addresses (~3.3% in Source 2 and Source 3), or where numeric addresses drift without shared locality tokens.
-- **The Union of both signals** eliminates the blind spots of both individual channels, achieving **100.00% recall**.
+To ensure blocking rules generalize to unseen data without overfitting:
+1. **Partitioning:** An entity-level $80/20$ train/validation split was applied to Source 1 entities using fixed random seed `seed = 42`.
+2. **Search Space:** Validation Source 1 entities were queried against the complete target pool (Source 2 and Source 3 true matches plus distractors).
+3. **Mathematical Formulas:**
+   $$\text{Recall Ceiling} = \frac{|\text{Recovered True Pairs in Held-out Split}|}{|\text{Total True Pairs in Held-out Split}|} = \frac{6,805}{6,864} = 99.14\%$$
+   $$\text{Reduction Ratio} = 1 - \frac{|\text{Candidates Generated}|}{|S_{1,\text{val}}| \times (|S_2| + |S_3|)} = 1 - \frac{1,298,211}{269,044,000} = 99.5031\%$$
 
 ---
 
-## 4. Held-out Validation Methodology
+## 4. Workload Profiling & Resource Constraints
 
-To ensure blocking rules do not overfit to specific training records:
-1. **Entity-level Split**: Source 1 entities were partitioned into an 80% train set and a 20% held-out validation set using a fixed random seed (`seed = 42`).
-2. **Unseen Query Evaluation**: Validation Source 1 entities were queried against the entire target pool (Source 2 and Source 3).
-3. **Recall Ceiling Calculation**:
-   $$\text{Recall Ceiling} = \frac{|\text{Recovered True Pairs in Held-out Split}|}{|\text{Total True Pairs in Held-out Split}|} = \frac{568}{568} = 100.00\%$$
-4. **Reduction Ratio Calculation**:
-   $$\text{Reduction Ratio} = 1 - \frac{|\text{Candidates Generated}|}{|S_{1,\text{val}}| \times (|S_2| + |S_3|)} = 1 - \frac{52,294}{695,346} = 92.49\%$$
+### Machine Constraints
+- **Total RAM:** 16.0 GB
+- **Free Physical RAM Available:** ~2.6 GB
+- **Logical CPU Cores:** 12
 
-Both training and held-out validation recall ceilings reached **100.00%**, confirming that the blocking keys generalize without degradation.
+### Full-Scale Dataset Characteristics
+- `train_source1.tsv`: 2,206,821 rows (210 MB)
+- `train_source2.tsv`: 5,034,616 rows (489 MB)
+- `train_source3.tsv`: 5,285,603 rows (504 MB)
+- `train_ground_truth.tsv`: 2,206,821 rows (127 MB)
+- Total rows across sources: **12,527,040 rows** (~2.5 GB on disk).
 
----
-
-## 5. Complexity & Scalability Analysis
-
-- **Time Complexity**:
-  - Indexing target sources: $O((N_2 + N_3) \cdot \bar{K})$, where $\bar{K}$ is average keys per entity ($\approx 4\text{–}8$).
-  - Querying Source 1: $O(N_1 \cdot \bar{K})$.
-  - Total time: $O(N_1 + N_2 + N_3)$, which is strictly **linear / sub-quadratic**.
-- **Memory Safety**:
-  - Block size thresholds (`max_prefix_block_size = 1000`, `max_token_block_size = 500`, `max_addr_block_size = 500`) prune high-frequency keys before querying, preventing $O(N^2)$ worst-case memory expansion.
-- **Country Generalization**:
-  - The blocking keys contain no hard-coded country logic or country filtering, ensuring seamless compatibility with unseen countries (such as France in the hidden test set).
+### Profiling Observations
+- In-memory materialization of all 12.5M rows as uncompressed DataFrames simultaneously would require **6–8 GB RAM**, exceeding the available physical memory (2.6 GB) and risking an Out-Of-Memory (OOM) crash or excessive paging.
+- Normalization throughput: **~29,600 rows/second**.
+- Candidate generation throughput: **~198 seconds per 10,000 Source 1 queries** against 134.5k targets with peak memory capped at **1,127 MB**.
+- For full-dataset generation, `scripts/run_blocking.py` supports streaming / chunked processing to safely process the entire 2.2M Source 1 entities within system memory limits.
 
 ---
 
-## 6. Downstream Interface Contract for Person C (Stage-A Features)
+## 5. Verification on Test Sources (Including France)
 
-Person C consumes `candidate_pairs.tsv` to construct pairwise training datasets and train the Stage-A LightGBM classifier.
+The implementation was verified on the actual test sources (`dataset/test_source1.tsv`, `dataset/test_source2.tsv`, `dataset/test_source3.tsv`).
+- In `test_source1.tsv`, **France represents 14.9% of entities** (2,981 of first 20,000 rows).
+- A sample of 1,000 test entities (including 128 French entities) was evaluated against 20,000 test entities across Source 2 and Source 3.
+- The blocking pipeline ran smoothly without errors, generating 233,522 total candidate pairs (76,778 for French entities), confirming zero country gating or language-specific failures on unseen countries.
 
-### TSV File Specifications:
-- **Path**: `output/candidate_pairs.tsv` (or user-specified via `--output`)
-- **Format**: Tab-separated values (`\t`), UTF-8 encoded.
-- **Header**:
-  ```tsv
-  source1_entity_id<TAB>candidate_entity_ids
-  ```
-- **Row Specifications**:
-  - Exactly **one row per Source 1 entity**.
-  - `source1_entity_id`: e.g. `S1-100001`
-  - `candidate_entity_ids`: Comma-separated target IDs (from both Source 2 and Source 3), e.g. `S2-200001,S3-300005`.
-  - **Singletons / Zero Candidates**: When no candidates are found, the second column is an empty string (`S1-100006\t`).
-  - **Deduplication**: Candidate IDs within each row are strictly deduplicated.
-  - **Prefix Preservation**: Target IDs preserve their `S2-` and `S3-` prefixes so Person C can immediately determine which source table to join for normalized feature extraction.
+---
+
+## 6. Generated Output Specification (`candidate_pairs.tsv`)
+
+The candidate generation file was generated at [`output/candidate_pairs.tsv`](file:///c:/Users/SWETHA%20SRI/OneDrive/Documents/ML-Challenge-26-/output/candidate_pairs.tsv) and verified:
+
+```tsv
+source1_entity_id	candidate_entity_ids
+S1-161901150	S2-124034738,S2-126035631,S2-168688408,...
+S1-925783039	S2-157377754,S2-517291332,S3-997698194,...
+S1-773889195	
+```
+
+### Verification Checks Passed:
+1. **Header:** Exactly `source1_entity_id\tcandidate_entity_ids`.
+2. **Row Count:** Exactly one row per Source 1 entity.
+3. **Format:** Tab-separated (`\t`), comma-separated target IDs.
+4. **Target IDs:** Preserves source prefixes (`S2-` and `S3-`).
+5. **Deduplication:** 0 duplicate candidate IDs within any row.
+6. **Singletons:** Exactly empty candidate field after tab when no candidates are found.
